@@ -1,0 +1,29 @@
+{
+  "platform": "xiaohongshu",
+  "queueRoot": "/path/to/xhs-content-automation/social-publisher-queue",
+  "userDataDir": "/path/to/xhs-content-automation/xhs-publisher/browser-profile",
+  "browser": {
+    "executablePath": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "homeDir": "/path/to/xhs-content-automation/xhs-publisher/browser-home"
+  },
+  "headless": false,
+  "dryRun": true,
+  "requireImage": true,
+  "appendTagsToText": true,
+  "defaultTags": [],
+  "timing": {
+    "navigationTimeoutMs": 45000,
+    "publishNavigationTimeoutMs": 90000,
+    "postPublishWaitMs": 8000,
+    "preBrowseEnabled": true,
+    "postBrowseEnabled": true,
+    "browseMinDurationMs": 10000,
+    "browseScrolls": 2,
+    "browseOpenNotes": 1,
+    "browsePauseMsMin": 1200,
+    "browsePauseMsMax": 2800
+  },
+  "selectors": {
+    "publishUrl": "https://creator.xiaohongshu.com/publish/publish?source=official"
+  }
+}

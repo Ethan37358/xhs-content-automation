@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hotspot Copy Generator"
+  short_description: "基于热点生产社媒文案和配图 prompt"
+  default_prompt: "Use $hotspot-copy-generator to turn this trending topic into 1-3 publish-ready social posts with matching image prompts."

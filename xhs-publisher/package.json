@@ -1,0 +1,15 @@
+{
+  "name": "xhs-publisher",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Single-platform Xiaohongshu queue publisher. Reads approved content folders only; does not generate content.",
+  "type": "commonjs",
+  "scripts": {
+    "login": "node publisher.cjs login",
+    "run-once": "node publisher.cjs run-once",
+    "check": "node publisher.cjs check"
+  },
+  "dependencies": {
+    "playwright": "^1.53.0"
+  }
+}

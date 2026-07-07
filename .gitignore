@@ -1,0 +1,23 @@
+.DS_Store
+
+# Local runtime config and browser state
+xhs-publisher/config.json
+xhs-publisher/browser-profile/
+xhs-publisher/browser-home/
+**/node_modules/
+
+# Queue runtime data. Keep folder structure only.
+social-publisher-queue/pending/*
+social-publisher-queue/published/*
+social-publisher-queue/failed/*
+social-publisher-queue/logs/*
+!social-publisher-queue/pending/.gitkeep
+!social-publisher-queue/published/.gitkeep
+!social-publisher-queue/failed/.gitkeep
+!social-publisher-queue/logs/.gitkeep
+
+# Logs and screenshots
+*.log
+*.jsonl
+failure_*.png
+

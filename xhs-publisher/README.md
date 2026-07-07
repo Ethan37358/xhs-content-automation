@@ -1,0 +1,147 @@
+# Xiaohongshu Publisher
+
+独立账号操作脚本。它只读取你手动筛选后放入队列的内容，不调用内容生产 Skill，不生成文案或图片。
+
+## 目录约定
+
+队列根目录由 `config.json` 里的 `queueRoot` 指定。
+
+结构：
+
+```text
+social-publisher-queue/
+├── pending/
+├── published/
+├── failed/
+└── logs/
+```
+
+每条内容一个文件夹：
+
+```text
+pending/
+└── 2026-07-06-001/
+    ├── text.md
+    ├── image.png
+    ├── image_prompt.txt
+    └── meta.json
+```
+
+必需：
+
+- `text.md`
+- `image.png`、`image.jpg`、`image.jpeg` 或 `image.webp`
+
+可选：
+
+- `image_prompt.txt`
+- `meta.json`
+
+`meta.json` 示例：
+
+```json
+{
+  "title": "下班后不想说话",
+  "tags": ["低能量生活", "普通人生活"],
+  "source": "manual-approved"
+}
+```
+
+## 安装依赖
+
+如果本机没有 Playwright：
+
+```bash
+cd /path/to/xhs-content-automation/xhs-publisher
+npm install
+```
+
+## 配置
+
+复制配置文件：
+
+```bash
+cp config.example.json config.json
+```
+
+默认 `dryRun` 是 `true`，会填充发布页但不点击最终发布按钮。确认流程稳定后再改为：
+
+```json
+{
+  "dryRun": false
+}
+```
+
+## 登录
+
+```bash
+node xhs-publisher/publisher.cjs login --config xhs-publisher/config.json
+```
+
+如果使用当前 Codex 自带运行时，可以直接用包装脚本：
+
+```bash
+xhs-publisher/run.sh login
+```
+
+脚本会打开浏览器，你手动登录。登录态保存在：
+
+```text
+xhs-publisher/browser-profile
+```
+
+遇到验证码、扫码验证、二次验证，脚本不会绕过，需要你手动处理。
+
+## 发布一条
+
+每次只取 `pending/` 中按文件夹名排序的第一条：
+
+```bash
+node xhs-publisher/publisher.cjs run-once --config xhs-publisher/config.json
+```
+
+或：
+
+```bash
+xhs-publisher/run.sh run-once
+```
+
+强制真实发布：
+
+```bash
+node xhs-publisher/publisher.cjs run-once --config xhs-publisher/config.json --live
+```
+
+或：
+
+```bash
+xhs-publisher/run.sh run-once --live
+```
+
+强制干跑：
+
+```bash
+node xhs-publisher/publisher.cjs run-once --config xhs-publisher/config.json --dry-run
+```
+
+## Cron 示例
+
+每天下午 6 点触发一次：
+
+```cron
+0 18 * * * cd /path/to/xhs-content-automation && /usr/local/bin/node xhs-publisher/publisher.cjs run-once --config xhs-publisher/config.json >> social-publisher-queue/logs/cron.log 2>&1
+```
+
+如果使用 Codex 自带 Node，可以用：
+
+```cron
+0 18 * * * cd /path/to/xhs-content-automation && xhs-publisher/run.sh run-once >> social-publisher-queue/logs/cron.log 2>&1
+```
+
+## 失败处理
+
+- 队列为空：只写日志 `待发布队列已空,需要补充内容`
+- 内容格式错误：移动到 `failed/`
+- 登录失效、验证码、二次验证、发布 UI 找不到、平台拒绝：移动到 `failed/`，写 `failure.json` 和失败截图
+- 不做静默重试
+- 不自动补内容

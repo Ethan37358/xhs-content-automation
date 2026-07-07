@@ -14,6 +14,7 @@ This skill operates the account-publishing script only. It must stay decoupled f
 - Reads manually approved content from a filesystem queue.
 - Publishes at most one pending item per run.
 - Reuses Playwright browser login state.
+- Runs in headed browser mode by default (`headless: false`) and uses configurable ordinary browsing actions before/after publishing.
 - Records success, failure, and empty-queue results.
 - Stops for manual handling if login, captcha, or second verification appears.
 - Does not generate content, images, image prompts, topics, or replacement posts.
@@ -132,8 +133,25 @@ xhs-publisher/run.sh run-once --live
 4. If `pending/` is empty, report that the queue is empty and do not generate replacement content.
 5. For login, run the login command and let the user handle QR code, captcha, or second verification manually.
 6. For one publish run, use `run-once`; use `--live` only when the user clearly asks to actually publish.
-7. Report the result: published, failed, blocked by login/verification, or queue empty.
-8. If a failure folder or log entry is created, summarize the failure reason and point to the relevant local path.
+7. During a publish run, expect the script to perform ordinary browsing before/after publishing when enabled: open explore feed, random scrolls, random note clicks, random note dwell time, optional in-note scrolling, and return to the feed. The minimum browse duration is controlled by `timing.browseMinDurationMs`.
+8. Report the result: published, failed, blocked by login/verification, or queue empty.
+9. If a failure folder or log entry is created, summarize the failure reason and point to the relevant local path.
+
+## Browsing Configuration
+
+The ordinary browsing flow is configured in `xhs-publisher/config.json`.
+
+Important fields:
+
+- `headless: false`: use a visible browser window.
+- `timing.preBrowseEnabled`: browse before publishing.
+- `timing.postBrowseEnabled`: browse after publishing.
+- `timing.browseMinDurationMs`: minimum duration per browsing phase.
+- `timing.browseScrollsMin` / `timing.browseScrollsMax`: random feed scroll count.
+- `timing.browseOpenNotesMin` / `timing.browseOpenNotesMax`: random note open count.
+- `timing.noteStayMsMin` / `timing.noteStayMsMax`: random dwell time after opening a note.
+- `timing.inNoteScrollsMin` / `timing.inNoteScrollsMax`: random scroll count while a note is open.
+- `timing.browsePauseMsMin` / `timing.browsePauseMsMax`: random pause between actions.
 
 ## Scheduling
 

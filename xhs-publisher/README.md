@@ -72,6 +72,26 @@ cp config.example.json config.json
 }
 ```
 
+默认使用有头模式运行浏览器：
+
+```json
+{
+  "headless": false
+}
+```
+
+发布前后普通浏览测试流程由 `timing` 配置控制。当前支持随机滚动、随机点击内容、打开内容后的随机停留和内容页内随机滚动；每个浏览阶段至少执行 `browseMinDurationMs` 指定的时长。
+
+主要字段：
+
+- `preBrowseEnabled` / `postBrowseEnabled`：发布前后是否执行普通浏览
+- `browseMinDurationMs`：每个浏览阶段最短时长
+- `browseScrollsMin` / `browseScrollsMax`：随机滚动次数
+- `browseOpenNotesMin` / `browseOpenNotesMax`：随机打开内容数量
+- `noteStayMsMin` / `noteStayMsMax`：打开内容后的随机停留时间
+- `inNoteScrollsMin` / `inNoteScrollsMax`：内容页内随机滚动次数
+- `browsePauseMsMin` / `browsePauseMsMax`：动作之间的随机停顿
+
 ## 登录
 
 ```bash

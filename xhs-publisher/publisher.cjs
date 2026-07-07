@@ -169,9 +169,10 @@ function moveItem(config, itemDir, state, payload) {
 
 async function launch(config) {
   fs.mkdirSync(config.userDataDir, { recursive: true });
+  const browserConfig = config.browser || {};
   const launchOptions = {
     headless: Boolean(config.headless),
-    viewport: { width: 1440, height: 900 },
+    viewport: browserConfig.viewport || { width: 1440, height: 900 },
     acceptDownloads: false,
     args: [
       "--disable-crash-reporter",
@@ -179,12 +180,12 @@ async function launch(config) {
       "--disable-features=Crashpad"
     ]
   };
-  if (config.browser && config.browser.executablePath) {
-    launchOptions.executablePath = config.browser.executablePath;
+  if (browserConfig.executablePath) {
+    launchOptions.executablePath = browserConfig.executablePath;
   }
-  if (config.browser && config.browser.homeDir) {
-    fs.mkdirSync(config.browser.homeDir, { recursive: true });
-    launchOptions.env = { ...process.env, HOME: config.browser.homeDir };
+  if (browserConfig.homeDir) {
+    fs.mkdirSync(browserConfig.homeDir, { recursive: true });
+    launchOptions.env = { ...process.env, HOME: browserConfig.homeDir };
   }
   const context = await chromium.launchPersistentContext(config.userDataDir, {
     ...launchOptions
@@ -234,30 +235,41 @@ function waitEnter() {
 async function ordinaryBrowse(config, page, phase) {
   if ((phase === "pre" && !config.timing.preBrowseEnabled) || (phase === "post" && !config.timing.postBrowseEnabled)) return;
   const startedAt = Date.now();
+  const timing = config.timing || {};
   let clickedNotes = 0;
   let returnedNotes = 0;
+  let noteStayMsTotal = 0;
 
   await page.goto("https://www.xiaohongshu.com/explore", { waitUntil: "domcontentloaded" });
-  await page.waitForTimeout(rand(config.timing.browsePauseMsMin, config.timing.browsePauseMsMax));
+  await humanPause(timing);
   const block = await isBlocked(page);
   if (block.blocked) throw userError(block.code, `${phase} browse blocked: ${block.message}`);
 
-  const scrolls = Number(config.timing.browseScrolls || 1);
+  const scrolls = randomCount(timing.browseScrollsMin, timing.browseScrollsMax, timing.browseScrolls || 1);
   for (let i = 0; i < scrolls; i += 1) {
-    await page.mouse.wheel(0, rand(450, 900));
-    await page.waitForTimeout(rand(config.timing.browsePauseMsMin, config.timing.browsePauseMsMax));
+    await randomFeedScroll(page, timing);
+    await humanPause(timing);
   }
 
-  const openNotes = Number(config.timing.browseOpenNotes || 0);
+  const openNotes = randomCount(timing.browseOpenNotesMin, timing.browseOpenNotesMax, timing.browseOpenNotes || 0);
   for (let i = 0; i < openNotes; i += 1) {
     const links = await page.locator('a[href*="/explore/"]').count().catch(() => 0);
     if (!links) break;
-    const index = Math.min(i, links - 1);
+    const index = rand(0, Math.max(0, links - 1));
     const note = page.locator('a[href*="/explore/"]').nth(index);
     const beforeUrl = page.url();
+    await moveNearLocator(page, note).catch(() => null);
     await note.click();
     clickedNotes += 1;
-    await page.waitForTimeout(rand(config.timing.browsePauseMsMin, config.timing.browsePauseMsMax));
+    const noteStayMs = rand(timing.noteStayMsMin || timing.browsePauseMsMin || 1200, timing.noteStayMsMax || timing.browsePauseMsMax || 2800);
+    noteStayMsTotal += noteStayMs;
+    await page.waitForTimeout(Math.max(500, Math.floor(noteStayMs / 2)));
+    const inNoteScrolls = randomCount(timing.inNoteScrollsMin, timing.inNoteScrollsMax, 0);
+    for (let j = 0; j < inNoteScrolls; j += 1) {
+      await randomFeedScroll(page, timing);
+      await humanPause(timing);
+    }
+    await page.waitForTimeout(Math.max(500, Math.ceil(noteStayMs / 2)));
     if (page.url() !== beforeUrl) {
       await page.goBack({ waitUntil: "domcontentloaded" }).catch(() => page.goto("https://www.xiaohongshu.com/explore", { waitUntil: "domcontentloaded" }));
     } else {
@@ -265,7 +277,7 @@ async function ordinaryBrowse(config, page, phase) {
       await page.waitForTimeout(500);
     }
     returnedNotes += 1;
-    await page.waitForTimeout(rand(600, 1200));
+    await humanPause(timing);
   }
 
   if (openNotes > 0 && clickedNotes === 0) {
@@ -283,10 +295,12 @@ async function ordinaryBrowse(config, page, phase) {
 
   logLine(config, "info", "ordinary_browse_done", {
     phase,
+    headed: !Boolean(config.headless),
     scrolls,
     requestedOpenNotes: openNotes,
     clickedNotes,
     returnedNotes,
+    noteStayMsTotal,
     durationMs: Date.now() - startedAt
   });
 }
@@ -349,6 +363,35 @@ async function openPublishPage(config, page) {
 
 function rand(min, max) {
   return Math.floor(Number(min) + Math.random() * (Number(max) - Number(min) + 1));
+}
+
+function randomCount(min, max, fallback) {
+  if (Number.isFinite(Number(min)) && Number.isFinite(Number(max))) {
+    return rand(Number(min), Number(max));
+  }
+  return Number(fallback || 0);
+}
+
+async function humanPause(timing) {
+  await new Promise((resolve) => setTimeout(resolve, rand(timing.browsePauseMsMin || 900, timing.browsePauseMsMax || 2400)));
+}
+
+async function randomFeedScroll(page, timing) {
+  const down = Math.random() > 0.18;
+  const min = timing.scrollDistanceMin || 320;
+  const max = timing.scrollDistanceMax || 980;
+  const distance = rand(min, max) * (down ? 1 : -1);
+  await page.mouse.wheel(0, distance);
+}
+
+async function moveNearLocator(page, locator) {
+  const box = await locator.boundingBox();
+  if (!box) return;
+  await page.mouse.move(
+    box.x + rand(8, Math.max(9, Math.floor(box.width - 8))),
+    box.y + rand(8, Math.max(9, Math.floor(box.height - 8))),
+    { steps: rand(4, 10) }
+  );
 }
 
 async function publishOne(config, page, content) {

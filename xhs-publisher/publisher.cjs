@@ -713,10 +713,43 @@ function check(config) {
   });
 }
 
+async function browseTest(config) {
+  ensureQueue(config);
+  let context;
+  let page;
+  try {
+    ({ context, page } = await launch(config));
+  } catch (error) {
+    logLine(config, "error", "browser_launch_failed", {
+      message: error.message
+    });
+    return;
+  }
+
+  try {
+    await ordinaryBrowse(config, page, "test");
+    logLine(config, "info", "browse_test_done", {
+      headed: !Boolean(config.headless),
+      url: page.url()
+    });
+  } catch (error) {
+    const screenshot = path.join(config.queueRoot, "logs", `browse_test_failure_${localStamp()}.png`);
+    await page.screenshot({ path: screenshot, fullPage: true }).catch(() => null);
+    logLine(config, "error", "browse_test_failed", {
+      reason: error.code || ERROR_CODES.UNKNOWN,
+      message: error.message,
+      screenshot
+    });
+  } finally {
+    await context.close();
+  }
+}
+
 function help() {
   console.log(`Usage:
   node xhs-publisher/publisher.cjs login [--config xhs-publisher/config.json]
   node xhs-publisher/publisher.cjs run-once [--config xhs-publisher/config.json] [--dry-run|--live]
+  node xhs-publisher/publisher.cjs browse-test [--config xhs-publisher/config.json]
   node xhs-publisher/publisher.cjs check [--config xhs-publisher/config.json]
 
 Queue item format:
@@ -735,6 +768,7 @@ async function main() {
 
   if (args.command === "login") await login(config);
   else if (args.command === "run-once") await runOnce(config);
+  else if (args.command === "browse-test") await browseTest(config);
   else if (args.command === "check") check(config);
   else help();
 }

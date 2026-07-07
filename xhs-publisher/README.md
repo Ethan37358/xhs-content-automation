@@ -144,6 +144,16 @@ xhs-publisher/run.sh run-once --live
 node xhs-publisher/publisher.cjs run-once --config xhs-publisher/config.json --dry-run
 ```
 
+## 只测试普通浏览流程
+
+这个命令只打开有头浏览器执行普通浏览测试，不读取 `pending/`，不进入发布页，也不会发布内容：
+
+```bash
+xhs-publisher/run.sh browse-test
+```
+
+如果出现登录弹窗、验证码、扫码验证或二次验证，脚本会停下并记录失败截图，需要先手动登录。
+
 ## Cron 示例
 
 每天下午 6 点触发一次：

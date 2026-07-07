@@ -125,6 +125,12 @@ Run one item as live publish:
 xhs-publisher/run.sh run-once --live
 ```
 
+Run only the headed ordinary browsing test without opening the publish page:
+
+```bash
+xhs-publisher/run.sh browse-test
+```
+
 ## Workflow
 
 1. Confirm the user wants account publishing, login, queue checking, or scheduling, not content generation.
@@ -132,10 +138,11 @@ xhs-publisher/run.sh run-once --live
 3. Check the queue before live publishing when the user asks for a test or real run.
 4. If `pending/` is empty, report that the queue is empty and do not generate replacement content.
 5. For login, run the login command and let the user handle QR code, captcha, or second verification manually.
-6. For one publish run, use `run-once`; use `--live` only when the user clearly asks to actually publish.
-7. During a publish run, expect the script to perform ordinary browsing before/after publishing when enabled: open explore feed, random scrolls, random note clicks, random note dwell time, optional in-note scrolling, and return to the feed. The minimum browse duration is controlled by `timing.browseMinDurationMs`.
-8. Report the result: published, failed, blocked by login/verification, or queue empty.
-9. If a failure folder or log entry is created, summarize the failure reason and point to the relevant local path.
+6. For browsing-only tests, use `browse-test`; it must not open the publish page or read a pending queue item.
+7. For one publish run, use `run-once`; use `--live` only when the user clearly asks to actually publish.
+8. During a publish run, expect the script to perform ordinary browsing before/after publishing when enabled: open explore feed, random scrolls, random note clicks, random note dwell time, optional in-note scrolling, and return to the feed. The minimum browse duration is controlled by `timing.browseMinDurationMs`.
+9. Report the result: published, failed, blocked by login/verification, browse-test result, or queue empty.
+10. If a failure folder or log entry is created, summarize the failure reason and point to the relevant local path.
 
 ## Browsing Configuration
 

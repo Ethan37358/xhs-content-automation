@@ -76,9 +76,12 @@ cp config.example.json config.json
 
 ```json
 {
-  "headless": false
+  "headless": false,
+  "authPauseOnFailure": true
 }
 ```
+
+发布流程中如果出现登录弹窗、验证码、扫码验证或二次验证，脚本会保留当前浏览器窗口，内容继续留在 `pending/`，不会移动到 `failed/`。你在浏览器里手动处理完成后，回到终端按 Enter 关闭窗口；然后再次运行 `run-once` 继续发布。
 
 发布前后普通浏览测试流程由 `timing` 配置控制。当前支持随机滚动、随机点击内容、打开内容后的随机停留和内容页内随机滚动；每个浏览阶段至少执行 `browseMinDurationMs` 指定的时长。
 
@@ -174,6 +177,7 @@ xhs-publisher/run.sh browse-test
 
 - 队列为空：只写日志 `待发布队列已空,需要补充内容`
 - 内容格式错误：移动到 `failed/`
-- 登录失效、验证码、二次验证、发布 UI 找不到、平台拒绝：移动到 `failed/`，写 `failure.json` 和失败截图
+- 登录失效、验证码、二次验证：保留浏览器窗口等待手动处理，内容留在 `pending/`
+- 发布 UI 找不到、平台拒绝：移动到 `failed/`，写 `failure.json` 和失败截图
 - 不做静默重试
 - 不自动补内容

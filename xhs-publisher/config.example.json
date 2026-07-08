@@ -12,6 +12,7 @@
   },
   "headless": false,
   "dryRun": true,
+  "authPauseOnFailure": true,
   "requireImage": true,
   "appendTagsToText": true,
   "defaultTags": [],

@@ -155,6 +155,10 @@ function userError(code, message, extra = {}) {
   return error;
 }
 
+function isAuthError(error) {
+  return [ERROR_CODES.LOGIN_REQUIRED, ERROR_CODES.CAPTCHA_REQUIRED].includes(error && error.code);
+}
+
 function moveItem(config, itemDir, state, payload) {
   const sourceName = path.basename(itemDir);
   const suffix = state === "published" ? "published" : "failed";
@@ -842,6 +846,21 @@ async function runOnce(config) {
   } catch (error) {
     const screenshot = path.join(config.queueRoot, "logs", `failure_${path.basename(itemDir)}_${localStamp()}.png`);
     await page.screenshot({ path: screenshot, fullPage: true }).catch(() => null);
+    if (isAuthError(error)) {
+      logLine(config, "error", "publish_auth_required_pending_kept", {
+        item: path.basename(itemDir),
+        reason: error.code,
+        message: error.message,
+        screenshot,
+        pendingKept: true
+      });
+      if (config.authPauseOnFailure !== false && !config.headless) {
+        console.log("\n检测到登录、扫码验证、验证码或二次验证。内容仍保留在 pending，不会移动到 failed。");
+        console.log("请在当前打开的浏览器里手动处理；处理完成后回到这里按 Enter 关闭浏览器。之后再次运行 run-once 继续发布。\n");
+        await waitEnter();
+      }
+      return;
+    }
     const target = moveItem(config, itemDir, "failed", {
       reason: error.code || ERROR_CODES.UNKNOWN,
       message: error.message,

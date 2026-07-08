@@ -16,7 +16,7 @@ This skill operates the account-publishing script only. It must stay decoupled f
 - Reuses Playwright browser login state.
 - Runs in headed browser mode by default (`headless: false`) and uses configurable ordinary browsing actions before/after publishing.
 - Records success, failure, and empty-queue results.
-- Stops for manual handling if login, captcha, or second verification appears.
+- Stops for manual handling if login, captcha, or second verification appears. In headed runs with `authPauseOnFailure: true`, keep the browser open, keep the item in `pending/`, and wait for the user to handle authentication before closing.
 - Does not generate content, images, image prompts, topics, or replacement posts.
 - Does not bypass platform security, captcha, or account checks.
 
@@ -141,8 +141,9 @@ xhs-publisher/run.sh browse-test
 6. For browsing-only tests, use `browse-test`; it must not open the publish page or read a pending queue item. In this command only, if a standard login modal appears over the public feed, the script may close the modal and continue the browsing test. If the same login modal appears again after scrolling or clicking a note, the script may close it again and continue. This exception must not apply to publishing flows, captcha, QR verification, or second verification.
 7. For one publish run, use `run-once`; use `--live` only when the user clearly asks to actually publish.
 8. During a publish run, expect the script to perform ordinary browsing before/after publishing when enabled: open explore feed, random scrolls, random note clicks, random note dwell time, optional in-note scrolling, and return to the feed. The minimum browse duration is controlled by `timing.browseMinDurationMs`.
-9. Report the result: published, failed, blocked by login/verification, browse-test result, or queue empty.
-10. If a failure folder or log entry is created, summarize the failure reason and point to the relevant local path.
+9. If login/verification blocks a publish run, report that the item stayed in `pending/`; after the user handles the browser challenge, run `run-once` again.
+10. Report the result: published, failed, blocked by login/verification, browse-test result, or queue empty.
+11. If a failure folder or log entry is created, summarize the failure reason and point to the relevant local path.
 
 ## Browsing Configuration
 

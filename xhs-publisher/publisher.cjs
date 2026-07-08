@@ -237,11 +237,14 @@ async function ordinaryBrowse(config, page, phase) {
   const startedAt = Date.now();
   const timing = config.timing || {};
   let clickedNotes = 0;
+  let openedNotes = 0;
   let returnedNotes = 0;
   let noteStayMsTotal = 0;
+  let loginModalCloseCount = 0;
 
   await page.goto("https://www.xiaohongshu.com/explore", { waitUntil: "domcontentloaded" });
   await humanPause(timing);
+  if (phase === "test") loginModalCloseCount += await closeLoginModalLoopForBrowseTest(page);
   const block = await isBlocked(page);
   if (block.blocked) throw userError(block.code, `${phase} browse blocked: ${block.message}`);
 
@@ -249,6 +252,7 @@ async function ordinaryBrowse(config, page, phase) {
   for (let i = 0; i < scrolls; i += 1) {
     await randomFeedScroll(page, timing);
     await humanPause(timing);
+    if (phase === "test") loginModalCloseCount += await closeLoginModalLoopForBrowseTest(page);
   }
 
   const openNotes = randomCount(timing.browseOpenNotesMin, timing.browseOpenNotesMax, timing.browseOpenNotes || 0);
@@ -258,9 +262,25 @@ async function ordinaryBrowse(config, page, phase) {
     const index = rand(0, Math.max(0, links - 1));
     const note = page.locator('a[href*="/explore/"]').nth(index);
     const beforeUrl = page.url();
-    await moveNearLocator(page, note).catch(() => null);
-    await note.click();
+    let opened = false;
+    if (phase === "test") {
+      const clickResult = await clickNoteForBrowseTest(page, note);
+      loginModalCloseCount += clickResult.closedLoginModals;
+      if (!clickResult.clicked) continue;
+      opened = clickResult.opened;
+    } else {
+      await moveNearLocator(page, note).catch(() => null);
+      await note.click();
+      opened = true;
+    }
     clickedNotes += 1;
+    if (phase === "test") loginModalCloseCount += await closeLoginModalLoopForBrowseTest(page);
+    if (!opened || page.url() === beforeUrl) {
+      returnedNotes += 1;
+      await humanPause(timing);
+      continue;
+    }
+    openedNotes += 1;
     const noteStayMs = rand(timing.noteStayMsMin || timing.browsePauseMsMin || 1200, timing.noteStayMsMax || timing.browsePauseMsMax || 2800);
     noteStayMsTotal += noteStayMs;
     await page.waitForTimeout(Math.max(500, Math.floor(noteStayMs / 2)));
@@ -268,6 +288,7 @@ async function ordinaryBrowse(config, page, phase) {
     for (let j = 0; j < inNoteScrolls; j += 1) {
       await randomFeedScroll(page, timing);
       await humanPause(timing);
+      if (phase === "test") loginModalCloseCount += await closeLoginModalLoopForBrowseTest(page);
     }
     await page.waitForTimeout(Math.max(500, Math.ceil(noteStayMs / 2)));
     if (page.url() !== beforeUrl) {
@@ -283,7 +304,7 @@ async function ordinaryBrowse(config, page, phase) {
   if (openNotes > 0 && clickedNotes === 0) {
     throw userError(ERROR_CODES.PUBLISH_UI_CHANGED, `${phase} browse could not find a note to click`);
   }
-  if (clickedNotes > 0 && returnedNotes < clickedNotes) {
+  if (openedNotes > 0 && returnedNotes < openedNotes) {
     throw userError(ERROR_CODES.PUBLISH_UI_CHANGED, `${phase} browse clicked a note but did not return`);
   }
 
@@ -296,9 +317,11 @@ async function ordinaryBrowse(config, page, phase) {
   logLine(config, "info", "ordinary_browse_done", {
     phase,
     headed: !Boolean(config.headless),
+    loginModalCloseCount,
     scrolls,
     requestedOpenNotes: openNotes,
     clickedNotes,
+    openedNotes,
     returnedNotes,
     noteStayMsTotal,
     durationMs: Date.now() - startedAt
@@ -392,6 +415,140 @@ async function moveNearLocator(page, locator) {
     box.y + rand(8, Math.max(9, Math.floor(box.height - 8))),
     { steps: rand(4, 10) }
   );
+}
+
+async function clickNoteForBrowseTest(page, note) {
+  let closedLoginModals = 0;
+  let clicked = false;
+  let opened = false;
+  const beforeUrl = page.url();
+
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    closedLoginModals += await closeLoginModalLoopForBrowseTest(page);
+    await moveNearLocator(page, note).catch(() => null);
+    try {
+      await note.click({ timeout: 6000 });
+      clicked = true;
+      await page.waitForTimeout(900);
+      closedLoginModals += await closeLoginModalLoopForBrowseTest(page);
+      opened = page.url() !== beforeUrl;
+      return { clicked, opened, closedLoginModals };
+    } catch (error) {
+      const message = error && error.message ? error.message : String(error);
+      const closed = await closeLoginModalLoopForBrowseTest(page);
+      closedLoginModals += closed;
+      if (!closed && !/intercepts pointer events|Timeout|not visible|outside of the viewport/i.test(message)) {
+        throw error;
+      }
+      await page.waitForTimeout(500);
+    }
+  }
+
+  return { clicked, opened, closedLoginModals };
+}
+
+async function closeLoginModalLoopForBrowseTest(page) {
+  let closedCount = 0;
+  for (let i = 0; i < 4; i += 1) {
+    const closed = await closeLoginModalForBrowseTest(page);
+    if (!closed) break;
+    closedCount += 1;
+    await page.waitForTimeout(300);
+  }
+  return closedCount;
+}
+
+async function closeLoginModalForBrowseTest(page) {
+  if (!await hasLoginModal(page)) return false;
+
+  const clicked = await page.evaluate(() => {
+    const isVisible = (element) => {
+      const style = window.getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return style.visibility !== "hidden" &&
+        style.display !== "none" &&
+        rect.width > 0 &&
+        rect.height > 0 &&
+        rect.bottom > 0 &&
+        rect.right > 0 &&
+        rect.top < window.innerHeight &&
+        rect.left < window.innerWidth;
+    };
+    const looksLikeClose = (element) => {
+      const label = [
+        element.getAttribute("aria-label"),
+        element.getAttribute("title"),
+        element.getAttribute("class"),
+        element.textContent
+      ].map((value) => String(value || "").toLowerCase()).join(" ");
+      return /close|关闭|cancel|取消|×|x/.test(label);
+    };
+    const dispatchClickAt = (x, y) => {
+      const target = document.elementFromPoint(x, y);
+      if (!target) return false;
+      target.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, view: window, clientX: x, clientY: y }));
+      target.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, view: window, clientX: x, clientY: y }));
+      target.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window, clientX: x, clientY: y }));
+      return true;
+    };
+    const textNodes = Array.from(document.querySelectorAll("div, section, article, main"))
+      .filter((element) => isVisible(element) && /手机号登录|输入手机号|获取验证码/.test(element.textContent || ""))
+      .map((element) => ({ element, rect: element.getBoundingClientRect() }))
+      .filter(({ rect }) => rect.width >= 260 && rect.width <= 900 && rect.height >= 180 && rect.height <= 700)
+      .sort((a, b) => (a.rect.width * a.rect.height) - (b.rect.width * b.rect.height));
+    if (textNodes.length) {
+      const rect = textNodes[0].rect;
+      if (dispatchClickAt(rect.right - 28, rect.top + 28)) return true;
+    }
+
+    const elements = Array.from(document.querySelectorAll("button, [role='button'], svg, path, span, div, i"));
+    const candidates = elements
+      .filter((element) => isVisible(element))
+      .map((element) => {
+        let target = element;
+        for (let i = 0; i < 4 && target.parentElement; i += 1) {
+          if (looksLikeClose(target)) break;
+          target = target.parentElement;
+        }
+        return { element, target, rect: target.getBoundingClientRect() };
+      })
+      .filter((entry) => {
+        const rect = entry.rect;
+        const inModalCloseArea = rect.top > window.innerHeight * 0.12 &&
+          rect.top < window.innerHeight * 0.42 &&
+          rect.left > window.innerWidth * 0.45 &&
+          rect.left < window.innerWidth * 0.85;
+        return isVisible(entry.target) && (looksLikeClose(entry.target) || inModalCloseArea);
+      })
+      .sort((a, b) => {
+        const aScore = looksLikeClose(a.target) ? 0 : 1;
+        const bScore = looksLikeClose(b.target) ? 0 : 1;
+        return aScore - bScore || b.rect.left - a.rect.left;
+      });
+    if (!candidates.length) return false;
+    const target = candidates[0].target;
+    target.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, view: window }));
+    target.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, view: window }));
+    target.click();
+    return true;
+  }).catch(() => false);
+
+  if (!clicked) {
+    const viewport = page.viewportSize() || { width: 1440, height: 900 };
+    await page.mouse.click(viewport.width * 0.65, viewport.height * 0.23).catch(() => null);
+  }
+
+  await page.waitForTimeout(900);
+  if (await hasLoginModal(page)) {
+    await page.keyboard.press("Escape").catch(() => null);
+    await page.waitForTimeout(500);
+  }
+  return !await hasLoginModal(page);
+}
+
+async function hasLoginModal(page) {
+  const text = await visibleText(page).catch(() => "");
+  return /手机号登录|输入手机号|获取验证码|登录后推荐更懂你的笔记|小红书如何扫码|微信\s*扫码/.test(text);
 }
 
 async function publishOne(config, page, content) {

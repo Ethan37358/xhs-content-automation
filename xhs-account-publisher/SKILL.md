@@ -119,6 +119,12 @@ Run one item as dry run:
 xhs-publisher/run.sh run-once --dry-run
 ```
 
+Prepare a draft in the publish page without clicking publish:
+
+```bash
+xhs-publisher/run.sh run-once --draft
+```
+
 Run one item as live publish:
 
 ```bash
@@ -139,7 +145,7 @@ xhs-publisher/run.sh browse-test
 4. If `pending/` is empty, report that the queue is empty and do not generate replacement content.
 5. For login, run the login command and let the user handle QR code, captcha, or second verification manually.
 6. For browsing-only tests, use `browse-test`; it must not open the publish page or read a pending queue item. In this command only, if a standard login modal appears over the public feed, the script may close the modal and continue the browsing test. If the same login modal appears again after scrolling or clicking a note, the script may close it again and continue. This exception must not apply to publishing flows, captcha, QR verification, or second verification.
-7. For one publish run, use `run-once`; use `--live` only when the user clearly asks to actually publish.
+7. For one publish run, use `run-once`. Use `--draft` when the user wants a filled publish page or saved draft without clicking publish. Use `--live` only when the user clearly asks to actually publish.
 8. During a publish run, expect the script to perform ordinary browsing before/after publishing when enabled: open explore feed, random scrolls, random note clicks, random note dwell time, optional in-note scrolling, and return to the feed. The minimum browse duration is controlled by `timing.browseMinDurationMs`.
 9. If login/verification blocks a publish run, report that the item stayed in `pending/`; after the user handles the browser challenge, run `run-once` again.
 10. Report the result: published, failed, blocked by login/verification, browse-test result, or queue empty.

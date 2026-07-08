@@ -141,6 +141,14 @@ node xhs-publisher/publisher.cjs run-once --config xhs-publisher/config.json --l
 xhs-publisher/run.sh run-once --live
 ```
 
+填好发布页但不点击发布，保留浏览器给你确认草稿：
+
+```bash
+xhs-publisher/run.sh run-once --draft
+```
+
+`--draft` 会上传图片、填写标题和正文，然后停在发布页；内容继续保留在 `pending/`，不会移动到 `published/` 或 `failed/`。
+
 强制干跑：
 
 ```bash

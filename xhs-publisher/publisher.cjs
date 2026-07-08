@@ -59,6 +59,7 @@ function parseArgs(argv) {
     if (arg === "--config") args.config = argv[++i];
     else if (arg === "--dry-run") args.dryRun = true;
     else if (arg === "--live") args.dryRun = false;
+    else if (arg === "--draft") args.draftMode = true;
   }
   return args;
 }
@@ -69,6 +70,10 @@ function loadConfig(args) {
   const user = configPath === path.resolve(DEFAULT_CONFIG) ? {} : readJson(configPath);
   const config = mergeDeep(base, user);
   if (typeof args.dryRun === "boolean") config.dryRun = args.dryRun;
+  if (args.draftMode) {
+    config.draftMode = true;
+    config.dryRun = true;
+  }
   config.queueRoot = path.resolve(config.queueRoot);
   config.userDataDir = path.resolve(config.userDataDir);
   config.configPath = configPath;
@@ -261,10 +266,8 @@ async function ordinaryBrowse(config, page, phase) {
 
   const openNotes = randomCount(timing.browseOpenNotesMin, timing.browseOpenNotesMax, timing.browseOpenNotes || 0);
   for (let i = 0; i < openNotes; i += 1) {
-    const links = await page.locator('a[href*="/explore/"]').count().catch(() => 0);
-    if (!links) break;
-    const index = rand(0, Math.max(0, links - 1));
-    const note = page.locator('a[href*="/explore/"]').nth(index);
+    const note = await pickVisibleNote(page);
+    if (!note) break;
     const beforeUrl = page.url();
     let opened = false;
     if (phase === "test") {
@@ -409,6 +412,25 @@ async function randomFeedScroll(page, timing) {
   const max = timing.scrollDistanceMax || 980;
   const distance = rand(min, max) * (down ? 1 : -1);
   await page.mouse.wheel(0, distance);
+}
+
+async function pickVisibleNote(page) {
+  const candidates = [];
+  const locator = page.locator('a[href*="/explore/"]');
+  const count = await locator.count().catch(() => 0);
+  for (let i = 0; i < count; i += 1) {
+    const note = locator.nth(i);
+    const box = await note.boundingBox().catch(() => null);
+    if (!box || box.width < 80 || box.height < 80) continue;
+    const viewport = page.viewportSize() || { width: 1440, height: 900 };
+    const visibleEnough = box.y >= 0 &&
+      box.y < viewport.height - 120 &&
+      box.x >= 0 &&
+      box.x < viewport.width - 80;
+    if (visibleEnough) candidates.push(note);
+  }
+  if (!candidates.length) return null;
+  return candidates[rand(0, candidates.length - 1)];
 }
 
 async function moveNearLocator(page, locator) {
@@ -564,6 +586,11 @@ async function publishOne(config, page, content) {
   await selectImageTab(page);
   await uploadImage(page, content.imagePath);
   await fillPublishFields(page, content);
+
+  if (config.draftMode) {
+    logLine(config, "info", "draft_prepared_publish_skipped", { item: path.basename(content.itemDir), title: content.title });
+    return { draft: true, dryRun: true, url: page.url() };
+  }
 
   if (config.dryRun) {
     logLine(config, "warn", "dry_run_publish_skipped", { item: path.basename(content.itemDir), title: content.title });
@@ -835,6 +862,20 @@ async function runOnce(config) {
   try {
     await ordinaryBrowse(config, page, "pre");
     const result = await publishOne(config, page, content);
+    if (result.draft) {
+      logLine(config, "info", "draft_prepared_pending_kept", {
+        item: path.basename(itemDir),
+        title: content.title,
+        url: result.url,
+        pendingKept: true
+      });
+      if (!config.headless) {
+        console.log("\n草稿页已填好，未点击发布，内容仍保留在 pending。");
+        console.log("请在当前浏览器里确认草稿状态；确认完成后回到这里按 Enter 关闭浏览器。\n");
+        await waitEnter();
+      }
+      return;
+    }
     await ordinaryBrowse(config, page, "post");
     const target = moveItem(config, itemDir, "published", {
       platform: config.platform,
@@ -924,7 +965,7 @@ async function browseTest(config) {
 function help() {
   console.log(`Usage:
   node xhs-publisher/publisher.cjs login [--config xhs-publisher/config.json]
-  node xhs-publisher/publisher.cjs run-once [--config xhs-publisher/config.json] [--dry-run|--live]
+  node xhs-publisher/publisher.cjs run-once [--config xhs-publisher/config.json] [--dry-run|--draft|--live]
   node xhs-publisher/publisher.cjs browse-test [--config xhs-publisher/config.json]
   node xhs-publisher/publisher.cjs check [--config xhs-publisher/config.json]
 

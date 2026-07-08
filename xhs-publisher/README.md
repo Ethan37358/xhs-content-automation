@@ -89,10 +89,10 @@ cp config.example.json config.json
 
 - `preBrowseEnabled` / `postBrowseEnabled`：发布前后是否执行普通浏览
 - `browseMinDurationMs`：每个浏览阶段最短时长
-- `browseScrollsMin` / `browseScrollsMax`：随机滚动次数
-- `browseOpenNotesMin` / `browseOpenNotesMax`：随机打开内容数量
-- `noteStayMsMin` / `noteStayMsMax`：打开内容后的随机停留时间
-- `inNoteScrollsMin` / `inNoteScrollsMax`：内容页内随机滚动次数
+- `browseScrollsMin` / `browseScrollsMax`：随机滚动次数，当前中等档为 3-6 次
+- `browseOpenNotesMin` / `browseOpenNotesMax`：随机打开内容数量，当前中等档为 2-3 篇
+- `noteStayMsMin` / `noteStayMsMax`：打开内容后的随机停留时间，当前中等档为 5-10 秒
+- `inNoteScrollsMin` / `inNoteScrollsMax`：内容页内随机滚动次数，当前中等档为 1-2 次
 - `browsePauseMsMin` / `browsePauseMsMax`：动作之间的随机停顿
 
 ## 登录

@@ -23,18 +23,18 @@
     "preBrowseEnabled": true,
     "postBrowseEnabled": true,
     "browseMinDurationMs": 10000,
-    "browseScrollsMin": 2,
-    "browseScrollsMax": 5,
-    "browseOpenNotesMin": 1,
-    "browseOpenNotesMax": 2,
-    "inNoteScrollsMin": 0,
+    "browseScrollsMin": 3,
+    "browseScrollsMax": 6,
+    "browseOpenNotesMin": 2,
+    "browseOpenNotesMax": 3,
+    "inNoteScrollsMin": 1,
     "inNoteScrollsMax": 2,
-    "noteStayMsMin": 2500,
-    "noteStayMsMax": 7000,
+    "noteStayMsMin": 5000,
+    "noteStayMsMax": 10000,
     "scrollDistanceMin": 320,
     "scrollDistanceMax": 980,
-    "browsePauseMsMin": 1200,
-    "browsePauseMsMax": 2800
+    "browsePauseMsMin": 1500,
+    "browsePauseMsMax": 3500
   },
   "selectors": {
     "publishUrl": "https://creator.xiaohongshu.com/publish/publish?source=official"
